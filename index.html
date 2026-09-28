@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>근거노트 대시보드</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.css">
+<style>
+  /* 3주차 법령 · 조례 검증 대시보드와 같은 디자인 토큰 — 세 사이트가 한 벌로 읽히게 한다 */
+  :root{
+    --paper:#f4f3f0; --surface:#ffffff; --ink:#0a0a0a; --sub:#75726b;
+    --line:rgba(10,10,10,.11); --line-soft:rgba(10,10,10,.06); --fill:#edebe6;
+    --clay:#a63d2f; --ochre:#d9a441; --moss:#3f6b45;
+    font-family:"Pretendard", -apple-system, "Segoe UI", "Malgun Gothic", Roboto, sans-serif;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; color:var(--ink); background:var(--paper); -webkit-font-smoothing:antialiased; }
+
+  header{
+    padding:30px 32px 26px; background:var(--paper); border-bottom:1px solid var(--line);
+    display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:16px;
+  }
+  header h1{ font-size:30px; margin:0; font-weight:500; letter-spacing:-.035em; line-height:1.05; }
+  header p{ margin:10px 0 0; font-size:13px; color:var(--sub); max-width:64ch; line-height:1.5; }
+  header .eyebrow-top{ font-size:10px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--sub); display:block; margin-bottom:12px; }
+  .conn{ font-size:11.5px; color:var(--sub); border:1px solid var(--line); border-radius:999px; padding:7px 14px; white-space:nowrap; display:inline-flex; gap:8px; align-items:center; }
+  .conn i{ width:8px; height:8px; border-radius:50%; background:var(--sub); display:inline-block; }
+  .conn.ok i{ background:var(--moss); } .conn.bad i{ background:var(--clay); }
+
+  main{ max-width:1180px; margin:0 auto; padding:8px 32px 0; }
+  @media (max-width:900px){ main{ padding:8px 16px 0; } header{ padding:24px 16px 20px; } }
+
+  .panel{ background:var(--surface); border:1px solid var(--line); border-radius:18px; padding:22px; }
+  .hint{ font-size:11.5px; color:var(--sub); margin-top:7px; line-height:1.6; }
+  code{ font-size:11px; background:var(--fill); padding:1px 6px; border-radius:4px; word-break:break-all; }
+
+  .btn{ background:var(--ink); color:#fff; border:1px solid var(--ink); font-size:12.5px; font-weight:500; padding:10px 18px; border-radius:999px; cursor:pointer; font-family:inherit; transition:.15s; }
+  .btn:hover{ opacity:.85; } .btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .btn.ghost{ background:transparent; color:var(--ink); border-color:var(--line); }
+  .btn.ghost:hover{ border-color:var(--ink); opacity:1; }
+  .btn.sm{ padding:7px 13px; font-size:11.5px; }
+
+  .section-head{ margin:56px 0 18px; padding-top:22px; border-top:1px solid var(--line); }
+  .section-head .eyebrow{ display:block; font-size:10px; font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:var(--sub); margin-bottom:12px; }
+  .section-head .tag{ display:inline-block; margin-left:10px; font-size:10px; font-weight:600; letter-spacing:.08em; color:#fff; background:var(--ink); padding:3px 9px; border-radius:999px; vertical-align:1px; }
+  .section-head h2{ margin:0; font-size:26px; font-weight:500; letter-spacing:-.035em; line-height:1.1; }
+  .section-head p{ margin:10px 0 0; font-size:12.8px; color:var(--sub); line-height:1.6; max-width:80ch; }
+  .subhead{ font-size:15px; font-weight:500; letter-spacing:-.02em; margin:0 0 18px; padding-bottom:14px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .subhead .badge{ margin-left:auto; font-size:10px; font-weight:600; letter-spacing:.12em; color:var(--sub); border:1px solid var(--line); padding:4px 11px; border-radius:999px; }
+
+  .intro{ margin-top:24px; background:var(--ink); color:#f4f3f0; border-radius:18px; padding:26px 28px; }
+  .intro h2{ margin:0 0 12px; font-size:19px; font-weight:500; letter-spacing:-.03em; }
+  .intro p{ margin:0; font-size:12.8px; line-height:1.75; color:rgba(244,243,240,.82); max-width:82ch; }
+  .intro p + p{ margin-top:10px; }
+  .intro b{ color:#fff; font-weight:600; }
+  .intro code{ background:rgba(255,255,255,.12); color:#fff; }
+  .where{ display:grid; grid-template-columns:1.4fr repeat(3,1fr); margin-top:18px; border:1px solid rgba(255,255,255,.14); border-radius:12px; overflow:hidden; font-size:12px; }
+  .where > div{ padding:9px 12px; border-top:1px solid rgba(255,255,255,.08); color:rgba(244,243,240,.75); }
+  .where > div.h{ border-top:none; font-size:10px; letter-spacing:.12em; font-weight:600; color:rgba(244,243,240,.5); }
+  .where > div.k{ color:#fff; }
+  .where .y{ color:#9fd3a7; } .where .n{ color:#e8a397; }
+  .where > div.me{ background:rgba(255,255,255,.07); }
+
+  .warn{ font-size:12px; color:var(--clay); background:#f6ebe8; border:1px solid rgba(166,61,47,.25); padding:16px 18px; border-radius:14px; line-height:1.75; margin-top:20px; }
+  .warn b{ font-weight:600; }
+  .warn code{ background:rgba(166,61,47,.1); }
+  .warn ol{ margin:6px 0 0; padding-left:20px; }
+
+  /* ── SECTION 1 지표 카드 ─────────────────────────────── */
+  .cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .card{ border:1px solid var(--line); border-radius:14px; background:var(--surface); display:flex; flex-direction:column; overflow:hidden; }
+  .card.wait{ border-style:dashed; background:var(--paper); }
+  .card > h4{ margin:0; font-size:11px; font-weight:600; letter-spacing:.08em; padding:10px 14px; background:var(--fill); color:var(--sub); display:flex; gap:8px; }
+  .card:not(.wait) > h4{ background:var(--ink); color:#fff; }
+  .card > h4 .seq{ margin-left:auto; opacity:.7; font-weight:500; }
+  .card .body{ padding:14px 16px 16px; display:flex; flex-direction:column; gap:8px; flex:1; }
+  .card .v{ font-size:32px; font-weight:500; letter-spacing:-.045em; line-height:1.05; font-variant-numeric:tabular-nums; }
+  .card .v small{ font-size:13px; font-weight:500; letter-spacing:-.01em; color:var(--sub); margin-left:4px; }
+  .card .v.wait{ font-size:15px; color:var(--clay); letter-spacing:-.02em; }
+  .card .it{ font-size:12px; letter-spacing:-.01em; }
+  .card .meta{ font-size:11px; color:var(--sub); line-height:1.6; margin-top:auto; word-break:break-word; }
+
+  /* ── SECTION 2 입력 ─────────────────────────────────── */
+  .two{ display:grid; grid-template-columns:1fr 1.15fr; gap:16px; }
+  @media (max-width:900px){ .two{ grid-template-columns:1fr; } .where{ grid-template-columns:1.2fr repeat(3,1fr); font-size:11px; } }
+  label.f{ display:block; margin-top:14px; }
+  label.f:first-of-type{ margin-top:0; }
+  label.f > span{ display:flex; gap:8px; align-items:baseline; font-size:10.5px; font-weight:600; letter-spacing:.1em; color:var(--sub); margin-bottom:6px; }
+  label.f > span em{ font-style:normal; font-weight:500; letter-spacing:0; color:#a8a49b; }
+  input.t, select.t{ width:100%; padding:11px 14px; border:1px solid var(--line); border-radius:12px; font-size:13.5px; background:var(--paper); color:var(--ink); font-family:inherit; letter-spacing:-.01em; }
+  input.t:focus, select.t:focus{ outline:none; border-color:var(--ink); background:var(--surface); }
+  input.t.bad{ border-color:var(--clay); background:#fbf1ee; }
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  .row label.f{ margin-top:0; }
+  .row + label.f{ margin-top:14px; }
+  td.it{ min-width:170px; }
+  .seg{ display:flex; gap:6px; }
+  .seg button{ flex:1; }
+  .chip{ background:transparent; border:1px solid var(--line); color:var(--sub); font-size:12px; font-weight:500; padding:9px 12px; border-radius:999px; cursor:pointer; font-family:inherit; transition:.15s; }
+  .chip:hover{ border-color:var(--ink); color:var(--ink); }
+  .chip.active{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; align-items:center; }
+  .msg{ margin-top:14px; font-size:12px; line-height:1.7; padding:12px 14px; border-radius:12px; display:none; word-break:break-word; }
+  .msg.ok{ display:block; background:#edf3ee; color:#244a2a; border:1px solid rgba(63,107,69,.25); }
+  .msg.err{ display:block; background:#f6ebe8; color:var(--clay); border:1px solid rgba(166,61,47,.25); }
+  .msg.info{ display:block; background:var(--paper); color:var(--sub); border:1px solid var(--line); }
+  .msg b{ font-weight:600; }
+  .preview{ margin-top:14px; padding:12px 14px; border-radius:12px; background:var(--paper); border:1px solid var(--line-soft); font-size:12px; line-height:1.7; color:var(--sub); }
+  .preview b{ color:var(--ink); font-weight:600; }
+
+  /* ── SECTION 3 목록 ─────────────────────────────────── */
+  .table-scroll{ max-height:460px; overflow:auto; border:1px solid var(--line); border-radius:14px; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th,td{ text-align:left; padding:11px 13px; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  th{ background:var(--surface); position:sticky; top:0; font-size:10px; color:var(--sub); font-weight:600; letter-spacing:.12em; border-bottom:1px solid var(--line); white-space:nowrap; }
+  td.num{ font-variant-numeric:tabular-nums; text-align:right; font-weight:500; white-space:nowrap; }
+  td.src{ min-width:260px; color:var(--sub); font-size:11.5px; line-height:1.55; }
+  td.nw{ white-space:nowrap; }
+  td .age{ display:block; font-size:10.5px; color:var(--sub); }
+  td .age.old{ color:var(--clay); }
+  tbody tr:hover td{ background:var(--paper); }
+  tr.fresh td{ background:#f0f5f0; }
+  .empty{ padding:36px 10px; text-align:center; color:var(--sub); font-size:12.5px; }
+  .find-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+  .find-row input{ flex:1; min-width:200px; }
+  .find-count{ font-size:11.5px; color:var(--sub); white-space:nowrap; }
+
+  /* ── SECTION 4 저장 확인 ─────────────────────────────── */
+  .checks{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px; }
+  .check{ border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--surface); display:flex; flex-direction:column; gap:8px; }
+  .check.wait{ border-style:dashed; background:var(--paper); }
+  .check .k{ font-size:10px; font-weight:600; letter-spacing:.14em; color:var(--sub); display:flex; align-items:center; gap:8px; }
+  .check .k .st{ margin-left:auto; font-size:10px; padding:3px 9px; border-radius:999px; letter-spacing:.06em; }
+  .check .k .st.y{ background:var(--moss); color:#fff; }
+  .check .k .st.n{ background:var(--fill); color:var(--clay); }
+  .check .how{ font-size:12px; line-height:1.6; }
+  .check .rec{ font-size:11px; color:var(--sub); line-height:1.6; margin-top:auto; }
+  .oneline{ margin-top:18px; border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:var(--paper); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .oneline .t1{ flex:1; min-width:240px; font-size:12.5px; line-height:1.65; }
+  .oneline .lb{ font-size:10px; font-weight:600; letter-spacing:.14em; color:var(--sub); display:block; margin-bottom:4px; }
+
+  /* ── SECTION 5 키 점검 ──────────────────────────────── */
+  .keys{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:760px){ .keys{ grid-template-columns:1fr; } }
+  .key{ border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .key > h4{ margin:0; font-size:11px; font-weight:600; letter-spacing:.06em; padding:10px 14px; background:var(--fill); color:var(--sub); }
+  .key.pub > h4{ background:var(--moss); color:#fff; }
+  .key.sec > h4{ background:var(--clay); color:#fff; }
+  .key ul{ margin:0; padding:12px 14px 14px 30px; font-size:12px; line-height:1.75; }
+  .scan{ margin-top:14px; border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .scan > div{ display:grid; grid-template-columns:24px 1fr auto; gap:10px; padding:10px 14px; border-top:1px solid var(--line-soft); font-size:12px; align-items:baseline; }
+  .scan > div:first-child{ border-top:none; }
+  .scan .r{ font-size:11px; color:var(--sub); white-space:nowrap; }
+  .scan .o{ color:var(--moss); font-weight:700; } .scan .x{ color:var(--clay); font-weight:700; }
+  .log{ margin-top:14px; font-size:11.5px; color:var(--sub); line-height:1.7; }
+  .log pre{ margin:6px 0 0; padding:12px; background:var(--paper); border:1px solid var(--line-soft); border-radius:10px; white-space:pre-wrap; word-break:break-word; font-family:inherit; color:var(--ink); max-height:160px; overflow:auto; }
+
+  .source-caption{ font-size:11px; color:var(--sub); margin-top:14px; line-height:1.6; }
+  footer{ text-align:center; color:var(--sub); font-size:11px; padding:40px 24px; border-top:1px solid var(--line); margin-top:56px; letter-spacing:.02em; line-height:1.8; }
+  footer a{ color:var(--sub); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <span class="eyebrow-top">스마트도시계획 · 캡스톤디자인 · 4주차 비교과</span>
+    <h1>근거노트 대시보드</h1>
+    <p>값은 화면이 아니라 <b>서버의 표</b>에 둡니다. 폼에서 넣은 근거노트는 Supabase <code>evidence</code> 표의 한 행이 되고, 아래 목록과 카드는 모두 그 표에서 <b>다시 받아 온 행</b>으로만 그립니다.</p>
+  </div>
+  <span class="conn" id="conn"><i></i><span>연결 확인 중</span></span>
+</header>
+
+<main>
+
+  <div class="intro">
+    <h2>값이 사는 자리</h2>
+    <p><b>화면에 보이는 값은 저장되었다는 증거가 아니다</b> — 3주차 카드가 새로고침에 살아남은 것은 값을 코드에 박아 둔 하드코딩이었기 때문입니다. 오늘은 그 네 칸을 표의 한 행으로 옮깁니다.</p>
+    <p><b>브라우저에는 publishable 키만 둔다</b> — <code>sb_publishable_…</code>는 RLS 정책이 허용한 행만 읽고 씁니다. <code>sb_secret_…</code>은 RLS를 건너뛰므로 브라우저 코드와 저장소에 두지 않습니다.</p>
+    <div class="where">
+      <div class="h">값이 있는 자리</div><div class="h">새로고침</div><div class="h">다른 기기</div><div class="h">팀원</div>
+      <div class="k">변수 · 화면 상태</div><div class="n">사라짐</div><div class="n">없음</div><div class="n">없음</div>
+      <div class="k">브라우저 저장소</div><div class="y">남음</div><div class="n">없음</div><div class="n">없음</div>
+      <div class="k me">서버의 표 (Supabase)</div><div class="y me">남음</div><div class="y me">남음</div><div class="y me">남음 · RLS 읽기 정책</div>
+    </div>
+  </div>
+
+  <div class="warn" id="setup-warn" style="display:none;"></div>
+
+  <!-- SECTION 1 ─────────────────────────────────────────── -->
+  <div class="section-head" id="sec-cards"><span class="eyebrow">SECTION 1 <span class="tag">지표</span></span><h2>대시보드 지표 카드</h2>
+    <p>카드는 <code>evidence</code> 표에서 <b>항목 이름에 그 지표어가 들어간 가장 최근 행</b>을 골라 그립니다. 코드에 적어 둔 값은 하나도 없습니다 — 그 지표의 행이 아직 없으면 빈칸이 아니라 <b>'조회 대기'</b>로 남습니다.</p></div>
+  <div class="cards" id="cards"></div>
+
+  <!-- SECTION 2 ─────────────────────────────────────────── -->
+  <div class="section-head" id="sec-form"><span class="eyebrow">SECTION 2 <span class="tag">입력 → 저장</span></span><h2>근거노트 한 장 저장</h2>
+    <p>다섯 칸이 모두 차야 저장 버튼이 켜집니다. 값 칸은 <b>숫자만</b> 받습니다 — <code>300% 이하</code>를 통째로 넣으면 글자로 저장되어 정렬과 계산을 할 수 없습니다. 빈칸 금지는 화면 규칙일 뿐이므로 표의 열에도 <code>NOT NULL</code>을 걸어 서버가 한 번 더 거부합니다.</p></div>
+  <div class="two">
+    <div class="panel">
+      <div class="subhead">전국 조례에서 불러오기 <span class="badge" id="ordin-badge">불러오는 중</span></div>
+      <label class="f"><span>지자체 <em>3주차에 조회한 전국 도시·군계획 조례</em></span>
+        <input class="t" id="pick-city" list="city-list" placeholder="예: 천안시, 강원 고성군, 서울특별시" autocomplete="off">
+        <datalist id="city-list"></datalist>
+      </label>
+      <label class="f"><span>용도지역</span><select class="t" id="pick-zone"></select></label>
+      <label class="f"><span>지표</span>
+        <div class="seg"><button type="button" class="chip active" data-m="1">용적률</button><button type="button" class="chip" data-m="0">건폐율</button></div>
+      </label>
+      <div class="preview" id="pick-preview">지자체를 고르면 조례 값이 여기에 보입니다.</div>
+      <div class="actions">
+        <button class="btn" id="pick-fill" disabled>폼에 채우기 →</button>
+        <button class="btn ghost" id="pick-bulk" disabled title="고른 용도지역·지표를 값이 있는 전국 지자체 모두에 대해 한 번에 저장">전국 일괄 저장</button>
+      </div>
+      <div class="hint">폼에 채운 뒤에도 저장은 오른쪽 버튼을 눌러야 일어납니다. 불러오기만으로는 아무것도 저장되지 않습니다.</div>
+      <div class="msg" id="bulk-msg"></div>
+    </div>
+
+    <form class="panel" id="form" autocomplete="off" novalidate>
+      <div class="subhead">evidence 표에 한 행 추가 <span class="badge">insert</span></div>
+      <label class="f"><span>item <em>text · 항목 이름</em></span><input class="t" name="item" placeholder="천안시 제3종일반주거지역 용적률"></label>
+      <div class="row">
+        <label class="f"><span>value <em>numeric · 숫자만</em></span><input class="t" name="value" inputmode="decimal" placeholder="300"></label>
+        <label class="f"><span>unit <em>text · 단위</em></span><input class="t" name="unit" placeholder="% 이하"></label>
+      </div>
+      <label class="f"><span>source <em>text · 조문 · 조례번호 · 시행일</em></span><input class="t" name="source" placeholder="천안시 도시계획 조례 제61조제1항제5호 (조례 제2613호, 시행 2024-05-17)"></label>
+      <label class="f"><span>queried_on <em>date · 조회일</em></span><input class="t" name="queried_on" type="date"></label>
+      <div class="actions">
+        <button class="btn" id="save" type="submit" disabled>표에 저장</button>
+        <button class="btn ghost" type="reset">비우기</button>
+        <span class="hint" id="form-hint" style="margin:0;"></span>
+      </div>
+      <div class="msg" id="save-msg"></div>
+    </form>
+  </div>
+
+  <!-- SECTION 3 ─────────────────────────────────────────── -->
+  <div class="section-head" id="sec-list"><span class="eyebrow">SECTION 3 <span class="tag">select</span></span><h2>서버에서 돌아온 근거 행</h2>
+    <p>이 목록은 화면이 기억하던 입력값이 아니라 <b>select로 표에서 다시 받은 행</b>입니다. 새로고침 · 다른 기기 · 팀원의 브라우저에서 같은 목록이 보이면 저장과 공유가 끝난 것입니다. 조회일이 180일을 넘긴 값은 붉게 표시합니다 — 조회일을 <code>date</code>형으로 둔 이유입니다.</p></div>
+  <div class="panel">
+    <div class="subhead">evidence <span class="badge" id="list-badge">—</span></div>
+    <div class="find-row">
+      <input class="t" type="search" id="list-q" placeholder="항목 · 출처로 거르기 — 예: 천안, 용적률">
+      <span class="find-count" id="list-count"></span>
+      <button class="btn ghost sm" id="reload">서버에서 다시 받기</button>
+    </div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>id</th><th>item</th><th style="text-align:right">value</th><th>unit</th><th>source</th><th>queried_on</th><th>created_at</th></tr></thead>
+      <tbody id="rows"><tr><td colspan="7" class="empty">불러오는 중</td></tr></tbody>
+    </table></div>
+    <div class="source-caption" id="list-cap"></div>
+  </div>
+
+  <!-- SECTION 4 ─────────────────────────────────────────── -->
+  <div class="section-head" id="sec-check"><span class="eyebrow">SECTION 4 <span class="tag">과제 ③</span></span><h2>새로고침해도 남아 있는지 — 세 곳에서 확인</h2>
+    <p>남아 있는지는 세 곳에서 봐야 압니다. 각 자리에서 이 페이지를 열어 목록에 같은 행이 보이면 <b>'보임 — 기록'</b>을 누르세요. 그 순간 서버에서 받은 행 수가 <code>evidence_check</code> 표에 함께 남으므로, 기록 자체도 서버에 있어 팀 모두가 봅니다.</p></div>
+  <div class="panel">
+    <div class="subhead">확인 기록 <span class="badge" id="check-badge">—</span></div>
+    <label class="f" style="max-width:360px;"><span>확인한 사람 · 기기 <em>예: 신재훈 노트북, 신재훈 휴대폰, 팀원 ○○○</em></span><input class="t" id="who" placeholder="이름 · 기기"></label>
+    <div class="checks" id="checks" style="margin-top:16px;"></div>
+    <div class="oneline">
+      <div class="t1"><span class="lb">제출용 한 줄 기록</span><span id="oneline-3">—</span></div>
+      <button class="btn ghost sm" data-copy="oneline-3">복사</button>
+    </div>
+  </div>
+
+  <!-- SECTION 5 ─────────────────────────────────────────── -->
+  <div class="section-head" id="sec-key"><span class="eyebrow">SECTION 5 <span class="tag">과제 ④</span></span><h2>공개할 수 있는 키와 없는 키</h2>
+    <p>브라우저에 넣어도 되는 키는 RLS가 지키는 키뿐입니다. 이 페이지는 실제로 불러온 파일을 다시 열어 키 문자열을 찾아보고, 커밋 전 점검 기록(<code>tools/key-scan.ps1</code>)이 있으면 함께 보여 줍니다.</p></div>
+  <div class="panel">
+    <div class="keys">
+      <div class="key pub"><h4>publishable · sb_publishable_⋯ — 브라우저에 넣어도 됨</h4><ul><li>RLS 정책이 허용한 행만 읽고 씀</li><li>이 사이트의 <code>config.js</code>에 있는 유일한 키</li><li>공개되어도 되지만, RLS가 꺼져 있으면 누구나 모든 행을 고칠 수 있음</li></ul></div>
+      <div class="key sec"><h4>secret · sb_secret_⋯ — 서버 환경변수에만</h4><ul><li>RLS를 적용받지 않아 모든 행에 접근</li><li>브라우저에서 쓰면 401로 거부됨</li><li>옛 이름 <code>service_role</code>(eyJ⋯) 도 같음 · 2026년 말 폐지 예정</li></ul></div>
+    </div>
+    <div class="subhead" style="margin-top:22px;">이 페이지가 불러온 파일 점검 <span class="badge" id="scan-badge">—</span></div>
+    <div class="scan" id="scan"></div>
+    <div class="oneline">
+      <div class="t1"><span class="lb">제출용 한 줄 기록</span><span id="oneline-4">—</span></div>
+      <button class="btn ghost sm" data-copy="oneline-4">복사</button>
+    </div>
+    <div class="log" id="keylog"></div>
+  </div>
+
+</main>
+
+<footer>
+  Supabase (Postgres · Data API · Row Level Security) · 조례 값: 국가법령정보 공동활용(법제처) OPEN API, 3주차 조회분<br>
+  근거: Supabase Docs 「Tables」「API keys」「Row Level Security」 (조회 2026-09-26) · 스마트도시계획(캡스톤디자인) 4주차 비교과
+</footer>
+
+<script src="config.js" onerror="void 0"></script>
+<script src="data/ordin-values.js" onerror="void 0"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const today = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+  const fmtTime = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); };
+  const daysSince = (ymd) => Math.floor((Date.now() - new Date(ymd + 'T00:00:00')) / 864e5);
+  const fmtNum = (v) => Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 4 });
+
+  const TABLE = 'evidence';
+  const CHECK_TABLE = 'evidence_check';
+  let db = null;
+  let rows = [];
+  let checks = [];
+  let freshId = null;
+
+  // ── 연결 ────────────────────────────────────────────────────────
+  // 키를 먼저 본다. secret/service_role 키가 들어 있으면 연결하지 않고 경고만 띄운다.
+  const cfg = window.SUPABASE_CONFIG || {};
+  const key = (cfg.publishableKey || '').trim();
+  const url = (cfg.url || '').trim().replace(/\/+$/, '');
+
+  function jwtRole(k) {
+    try { return JSON.parse(atob(k.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role || ''; } catch (e) { return ''; }
+  }
+  function keyKind(k) {
+    if (!k) return 'none';
+    if (k.startsWith('sb_publishable_')) return 'publishable';
+    if (k.startsWith('sb_secret_')) return 'secret';
+    if (k.startsWith('eyJ')) return jwtRole(k) === 'service_role' ? 'service_role' : 'legacy-anon';
+    return 'unknown';
+  }
+  const kind = keyKind(key);
+
+  function setConn(state, text) {
+    const el = $('conn');
+    el.className = 'conn ' + state;
+    el.querySelector('span').textContent = text;
+  }
+  function showSetup(html) { const w = $('setup-warn'); w.innerHTML = html; w.style.display = 'block'; }
+
+  if (!url || !key) {
+    setConn('bad', 'Supabase 설정 필요');
+    showSetup('<b>아직 Supabase에 연결되지 않았습니다.</b> 표에서 받아 올 행이 없으므로 카드와 목록이 비어 있는 것이 정상입니다.' +
+      '<ol><li>Supabase 대시보드 → SQL Editor에서 <code>sql/01_evidence.sql</code>을 실행해 표와 RLS 정책을 만든다</li>' +
+      '<li>상단 <b>Connect</b> 창에서 Project URL과 <b>publishable</b> 키를 복사한다</li>' +
+      '<li><code>config.js</code>의 <code>url</code>과 <code>publishableKey</code>에 붙여 넣고 새로고침한다</li></ol>');
+  } else if (kind === 'secret' || kind === 'service_role') {
+    setConn('bad', '비밀 키 감지 — 연결 거부');
+    showSetup('<b>config.js에 비밀 키(' + (kind === 'secret' ? 'sb_secret_' : 'service_role') + ')가 들어 있습니다. 연결하지 않았습니다.</b>' +
+      '<br>RLS를 건너뛰는 키이므로 지우고 publishable 키(<code>sb_publishable_…</code>)로 바꾸세요. 이미 커밋했다면 파일에서 지워도 기록에 남으므로 ' +
+      'Supabase 대시보드 → Settings → API Keys에서 그 키를 폐기하고 새로 발급하세요.');
+  } else {
+    if (kind === 'legacy-anon') {
+      showSetup('<b>옛 방식 anon 키(eyJ…)입니다.</b> 동작은 하지만 2026년 말 지원 종료 예정이므로 Connect 창의 publishable 키(<code>sb_publishable_…</code>)로 바꾸세요.');
+    }
+    if (!window.supabase || !window.supabase.createClient) {
+      setConn('bad', 'supabase-js를 불러오지 못함');
+    } else {
+      db = window.supabase.createClient(url, key, { auth: { persistSession: false } });
+      setConn('', url.replace(/^https?:\/\//, '').split('.')[0] + ' · 조회 중');
+    }
+  }
+
+  // 오류 문구는 자료형 · RLS · 키 · 표 이름 중 하나를 가리킨다 — 어느 쪽인지 사람 말로 옮겨 준다
+  function explain(err) {
+    const code = err && (err.code || '');
+    const m = (err && (err.message || err.hint || '')) + '';
+    if (code === '42501' || /row-level security/i.test(m)) return 'RLS 정책이 막았습니다 — SQL Editor에서 sql/01_evidence.sql의 정책(팀 읽기 · 팀 추가)을 실행했는지 확인하세요.';
+    if (code === '22P02' || /invalid input syntax/i.test(m)) return '자료형이 맞지 않습니다 — value는 숫자만, queried_on은 날짜(YYYY-MM-DD)만 받습니다.';
+    if (code === '23502' || code === '23514') return '빈 칸이 있어 서버가 거부했습니다 — 다섯 칸을 모두 채우세요 (표의 NOT NULL · CHECK 제약).';
+    if (code === 'PGRST205' || code === '42P01' || /does not exist|schema cache/i.test(m)) return '표를 찾지 못했습니다 — 표 이름이 코드의 from(\'' + TABLE + '\')와 같은지, SQL을 실행했는지 확인하세요.';
+    if (/api key|jwt|401|unauthori/i.test(m)) return '키가 거부되었습니다 — config.js의 publishable 키와 Project URL을 다시 복사해 넣으세요.';
+    if (/fetch|network/i.test(m)) return '서버에 닿지 못했습니다 — 인터넷 연결이나 Project URL을 확인하세요.';
+    return '';
+  }
+  function errHtml(err) {
+    const e = explain(err);
+    return (e ? '<b>' + esc(e) + '</b><br>' : '') + '<span style="opacity:.8">' + esc((err.code ? err.code + ' · ' : '') + (err.message || String(err))) + '</span>';
+  }
+
+  // ── 조회 ────────────────────────────────────────────────────────
+  async function load() {
+    if (!db) { renderAll(); return; }
+    $('reload').disabled = true;
+    const [a, b] = await Promise.all([
+      db.from(TABLE).select('id, created_at, item, value, unit, source, queried_on').order('id', { ascending: false }),
+      db.from(CHECK_TABLE).select('id, created_at, place, seen_rows, who, agent').order('id', { ascending: false }).limit(200)
+    ]);
+    $('reload').disabled = false;
+    if (a.error) {
+      rows = [];
+      setConn('bad', '조회 실패');
+      $('rows').innerHTML = '<tr><td colspan="7"><div class="msg err" style="margin:0">' + errHtml(a.error) + '</div></td></tr>';
+      $('list-badge').textContent = '오류';
+      renderCards(); renderChecks();
+      return;
+    }
+    rows = a.data || [];
+    checks = b.error ? [] : (b.data || []);
+    window.__lastFetch = new Date();
+    setConn('ok', url.replace(/^https?:\/\//, '').split('.')[0] + ' · ' + rows.length + '행');
+    renderAll();
+  }
+  function renderAll() { renderCards(); renderRows(); renderChecks(); }
+
+  // ── SECTION 1 카드 ─────────────────────────────────────────────
+  const CARDS = [
+    { k: '기온', w: '기온', re: /기온/ },
+    { k: '인구밀도', w: '인구밀도', re: /인구\s*밀도/ },
+    { k: '조례 용적률', w: '용적률', re: /용적률/ },
+    { k: '용도지역 구성비', w: '구성비', re: /구성비/ },
+    { k: '고시 이력', w: '고시', re: /고시/ }
+  ];
+  function renderCards() {
+    $('cards').innerHTML = CARDS.map((c, i) => {
+      const r = rows.find((x) => c.re.test(x.item));
+      const seq = String(i + 1).padStart(2, '0');
+      if (!r) {
+        return '<div class="card wait"><h4>' + esc(c.k) + '<span class="seq">' + seq + '</span></h4><div class="body">' +
+          '<div class="v wait">조회 대기</div><div class="meta">항목 이름에 「' + esc(c.w) + '」 낱말이 든 행을 저장하면 채워집니다.</div></div></div>';
+      }
+      const n = rows.filter((x) => c.re.test(x.item)).length;
+      return '<div class="card"><h4>' + esc(c.k) + '<span class="seq">' + seq + '</span></h4><div class="body">' +
+        '<div class="v">' + esc(fmtNum(r.value)) + '<small>' + esc(r.unit) + '</small></div>' +
+        '<div class="it">' + esc(r.item) + '</div>' +
+        '<div class="meta">' + esc(r.source) + '<br>조회 ' + esc(r.queried_on) + ' · 행 #' + r.id + (n > 1 ? ' · 같은 지표 ' + n + '행 중 최신' : '') + '</div></div></div>';
+    }).join('');
+  }
+
+  // ── SECTION 3 목록 ─────────────────────────────────────────────
+  function renderRows() {
+    if (!db) {
+      $('rows').innerHTML = '<tr><td colspan="7" class="empty">Supabase에 연결되면 표의 행이 여기에 나타납니다.</td></tr>';
+      $('list-badge').textContent = '미연결';
+      return;
+    }
+    const q = $('list-q').value.trim().toLowerCase();
+    const list = q ? rows.filter((r) => (r.item + ' ' + r.source + ' ' + r.unit).toLowerCase().includes(q)) : rows;
+    $('list-badge').textContent = '서버 ' + rows.length + '행';
+    $('list-count').textContent = q ? list.length + ' / ' + rows.length + '행' : '';
+    $('rows').innerHTML = list.length ? list.map((r) => {
+      const age = daysSince(r.queried_on);
+      return '<tr' + (r.id === freshId ? ' class="fresh"' : '') + '><td class="nw">' + r.id + '</td><td class="it">' + esc(r.item) + '</td>' +
+        '<td class="num">' + esc(fmtNum(r.value)) + '</td><td class="nw">' + esc(r.unit) + '</td><td class="src">' + esc(r.source) + '</td>' +
+        '<td class="nw">' + esc(r.queried_on) + '<span class="age' + (age > 180 ? ' old' : '') + '">' + (age <= 0 ? '오늘' : age + '일 전') + '</span></td>' +
+        '<td class="nw">' + esc(fmtTime(r.created_at)) + '</td></tr>';
+    }).join('') : '<tr><td colspan="7" class="empty">' + (rows.length ? '거른 결과가 없습니다.' : '표에 아직 행이 없습니다 — SECTION 2에서 근거노트를 저장하세요.') + '</td></tr>';
+    $('list-cap').textContent = window.__lastFetch ? '마지막으로 서버에서 받은 시각 ' + window.__lastFetch.toLocaleTimeString('ko-KR') + ' · select * from evidence order by id desc' : '';
+  }
+  $('list-q').addEventListener('input', renderRows);
+  $('reload').addEventListener('click', load);
+
+  // ── SECTION 2 폼 ───────────────────────────────────────────────
+  const form = $('form');
+  // form.elements['item'] 은 컬렉션의 item() 메서드와 이름이 겹치므로 name 으로 직접 찾는다
+  const F = (n) => form.querySelector('[name="' + n + '"]');
+  F('queried_on').value = today();
+
+  function readForm() {
+    const v = {
+      item: F('item').value.trim(),
+      value: F('value').value.trim().replace(/,/g, ''),
+      unit: F('unit').value.trim(),
+      source: F('source').value.trim(),
+      queried_on: F('queried_on').value
+    };
+    const bad = [];
+    ['item', 'unit', 'source', 'queried_on'].forEach((k) => { if (!v[k]) bad.push(k); });
+    if (!v.value || !/^-?\d+(\.\d+)?$/.test(v.value)) bad.push('value');
+    return { v, bad };
+  }
+  function checkForm() {
+    const { v, bad } = readForm();
+    ['item', 'value', 'unit', 'source', 'queried_on'].forEach((k) => F(k).classList.toggle('bad', bad.includes(k) && !!F(k).value.trim()));
+    $('save').disabled = !db || bad.length > 0;
+    let h = '';
+    if (!db) h = 'Supabase 연결 후 저장할 수 있습니다';
+    else if (v.value && bad.includes('value')) h = 'value에는 숫자만 — 단위는 unit 칸으로';
+    else if (bad.length) h = '빈 칸 ' + bad.length + '개';
+    $('form-hint').textContent = h;
+  }
+  form.addEventListener('input', checkForm);
+  form.addEventListener('reset', () => setTimeout(() => { F('queried_on').value = today(); checkForm(); $('save-msg').className = 'msg'; }, 0));
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const { v, bad } = readForm();
+    if (bad.length || !db) return;
+    $('save').disabled = true;
+    const msg = $('save-msg');
+    msg.className = 'msg info'; msg.textContent = '저장 중 — insert 요청을 보냈습니다';
+    // insert 뒤 .select()를 이어 붙이면 서버가 새 행의 id · created_at을 돌려준다
+    const { data, error } = await db.from(TABLE).insert({ ...v, value: Number(v.value) }).select().single();
+    if (error) {
+      msg.className = 'msg err'; msg.innerHTML = errHtml(error);
+      checkForm();
+      return;
+    }
+    freshId = data.id;
+    msg.className = 'msg ok';
+    msg.innerHTML = '<b>표에 저장되었습니다 — 행 #' + data.id + '</b> · 서버 시각 ' + esc(fmtTime(data.created_at)) +
+      '<br>아래 목록은 이 응답이 아니라 표를 다시 조회한 결과입니다. 새로고침해도 그대로 있는지 확인하세요.';
+    form.reset();
+    await load();
+  });
+
+  // ── 전국 조례에서 불러오기 ─────────────────────────────────────
+  const OV = window.__ORDIN_VALUES__;
+  let metric = 1; // 1 = 용적률, 0 = 건폐율
+  const cityLabel = (c) => (c.sido && c.sido !== c.n ? c.sido + ' ' : '') + c.n;
+  const cityByLabel = new Map();
+
+  function srcText(city, cell) {
+    // 3주차 표기 '… 제61조제1항제5호 · 시행 2024-05-17' 을 강의자료 표기 '(조례 제2613호, 시행 …)'로
+    const art = cell[2].split(' · ')[0];
+    return art + ' (' + (city.no ? '조례 제' + city.no + '호, ' : '') + '시행 ' + city.eff + ')';
+  }
+  function unitText(u) { return u.replace(/^퍼센트/, '%'); }
+  function currentPick() {
+    const city = cityByLabel.get($('pick-city').value.trim());
+    const zone = $('pick-zone').value;
+    const cell = city && city.z[zone] ? city.z[zone][metric] : null;
+    return { city, zone, cell };
+  }
+  function renderPick() {
+    const { city, zone, cell } = currentPick();
+    const mName = metric ? '용적률' : '건폐율';
+    $('pick-fill').disabled = !cell;
+    $('pick-bulk').disabled = !db || !zone;
+    const p = $('pick-preview');
+    if (!city) { p.innerHTML = '지자체를 고르면 조례 값이 여기에 보입니다.'; return; }
+    if (!cell) {
+      p.innerHTML = '<b>' + esc(city.law) + '</b><br>' + esc(zone) + ' ' + mName + ' — <span style="color:var(--clay)">조례 미규정 또는 별표 참조</span>. 이 조례에는 조문으로 적힌 값이 없어 불러올 수 없습니다.';
+      return;
+    }
+    p.innerHTML = '<b>' + esc(fmtNum(cell[0])) + ' ' + esc(unitText(cell[1])) + '</b> · ' + esc(zone) + ' ' + mName +
+      '<br>' + esc(srcText(city, cell)) + '<br>조회 ' + esc(cell[3]) +
+      (cell[4] ? '<br><span style="color:#5a4708">단서 — ' + esc(cell[4]) + '</span>' : '');
+  }
+
+  if (OV && OV.지자체) {
+    OV.지자체.forEach((c) => cityByLabel.set(cityLabel(c), c));
+    $('city-list').innerHTML = OV.지자체.map((c) => '<option value="' + esc(cityLabel(c)) + '">').join('');
+    $('pick-zone').innerHTML = OV.용도지역순서.map((z) => '<option' + (z === '제3종일반주거지역' ? ' selected' : '') + '>' + esc(z) + '</option>').join('');
+    $('ordin-badge').textContent = OV.지자체.length + '곳 · 조회 ' + (OV.조회일시 || '').slice(0, 10);
+    // 강의자료의 예시 행과 같은 곳에서 시작한다
+    const cheonan = OV.지자체.find((c) => c.n === '천안시');
+    if (cheonan) $('pick-city').value = cityLabel(cheonan);
+  } else {
+    $('ordin-badge').textContent = '데이터 없음';
+    $('pick-preview').textContent = 'data/ordin-values.js를 찾지 못했습니다. 폼에 직접 입력해도 저장은 됩니다.';
+  }
+  $('pick-city').addEventListener('input', renderPick);
+  $('pick-zone').addEventListener('change', renderPick);
+  document.querySelectorAll('.seg .chip').forEach((b) => b.addEventListener('click', () => {
+    document.querySelectorAll('.seg .chip').forEach((x) => x.classList.toggle('active', x === b));
+    metric = Number(b.dataset.m);
+    renderPick();
+  }));
+
+  $('pick-fill').addEventListener('click', () => {
+    const { city, zone, cell } = currentPick();
+    if (!cell) return;
+    F('item').value = city.n + ' ' + zone + ' ' + (metric ? '용적률' : '건폐율');
+    F('value').value = cell[0];
+    F('unit').value = unitText(cell[1]);
+    F('source').value = srcText(city, cell);
+    F('queried_on').value = cell[3]; // 오늘이 아니라 실제로 조례를 조회한 날
+    checkForm();
+    F('item').focus();
+  });
+
+  $('pick-bulk').addEventListener('click', async () => {
+    const zone = $('pick-zone').value;
+    const mName = metric ? '용적률' : '건폐율';
+    const payload = [];
+    OV.지자체.forEach((c) => {
+      const cell = c.z[zone] && c.z[zone][metric];
+      if (!cell) return;
+      const item = c.n + ' ' + zone + ' ' + mName;
+      // 같은 항목 · 같은 조회일의 행이 이미 있으면 다시 넣지 않는다
+      if (rows.some((r) => r.item === item && r.queried_on === cell[3])) return;
+      payload.push({ item, value: Number(cell[0]), unit: unitText(cell[1]), source: srcText(c, cell), queried_on: cell[3] });
+    });
+    const m = $('bulk-msg');
+    if (!payload.length) { m.className = 'msg info'; m.textContent = '새로 넣을 행이 없습니다 — 이미 표에 있거나 값이 있는 조례가 없습니다.'; return; }
+    if (!confirm('전국 ' + payload.length + '곳의 ' + zone + ' ' + mName + '을 evidence 표에 ' + payload.length + '행으로 저장합니다.\n브라우저에서는 지울 수 없으니(삭제 정책 없음) 확인 후 진행하세요.')) return;
+    $('pick-bulk').disabled = true;
+    m.className = 'msg info'; m.textContent = payload.length + '행 저장 중…';
+    const { data, error } = await db.from(TABLE).insert(payload).select('id');
+    $('pick-bulk').disabled = false;
+    if (error) { m.className = 'msg err'; m.innerHTML = errHtml(error); return; }
+    m.className = 'msg ok'; m.innerHTML = '<b>' + data.length + '행을 저장했습니다.</b> 목록은 표를 다시 조회해 그렸습니다.';
+    await load();
+  });
+
+  // ── SECTION 4 저장 확인 ────────────────────────────────────────
+  const PLACES = [
+    { k: '새로고침', how: '저장한 뒤 이 브라우저에서 F5. 목록에 같은 행이 다시 보이면 기록.' },
+    { k: '다른 기기', how: '휴대폰 등 다른 기기에서 배포 주소를 열어 같은 행이 보이면 기록.' },
+    { k: '팀원 브라우저', how: '팀원이 자기 노트북으로 배포 주소를 열어 같은 행이 보이면 팀원이 기록.' }
+  ];
+  function agentSummary() {
+    const u = navigator.userAgent;
+    const os = /Android/.test(u) ? 'Android' : /iPhone|iPad/.test(u) ? 'iOS' : /Windows/.test(u) ? 'Windows' : /Mac OS/.test(u) ? 'macOS' : /Linux/.test(u) ? 'Linux' : '기타';
+    const br = /Edg\//.test(u) ? 'Edge' : /SamsungBrowser/.test(u) ? 'Samsung' : /Chrome\//.test(u) ? 'Chrome' : /Firefox\//.test(u) ? 'Firefox' : /Safari\//.test(u) ? 'Safari' : '기타';
+    return br + ' · ' + os + ' · ' + screen.width + '×' + screen.height;
+  }
+  const navType = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0] || {}).type;
+
+  function renderChecks() {
+    $('checks').innerHTML = PLACES.map((p) => {
+      const c = checks.find((x) => x.place === p.k);
+      const reloadNote = p.k === '새로고침' && navType === 'reload' ? '<div class="hint" style="margin:0;color:var(--moss)">지금 이 페이지는 새로고침으로 열렸습니다.</div>' : '';
+      return '<div class="check' + (c ? '' : ' wait') + '"><div class="k">' + esc(p.k) + '<span class="st ' + (c ? 'y' : 'n') + '">' + (c ? '확인됨' : '미확인') + '</span></div>' +
+        '<div class="how">' + esc(p.how) + '</div>' + reloadNote +
+        '<div class="rec">' + (c ? esc(c.who) + ' · ' + esc(c.agent) + '<br>' + esc(fmtTime(c.created_at)) + ' · 그때 서버 ' + c.seen_rows + '행' : '아직 기록 없음') + '</div>' +
+        '<button class="btn sm' + (c ? ' ghost' : '') + '" data-place="' + esc(p.k) + '"' + (db && rows.length ? '' : ' disabled') + '>보임 — 기록</button></div>';
+    }).join('');
+    $('check-badge').textContent = PLACES.filter((p) => checks.some((x) => x.place === p.k)).length + ' / 3';
+    $('checks').querySelectorAll('button[data-place]').forEach((b) => b.addEventListener('click', () => record(b.dataset.place, b)));
+
+    const parts = PLACES.map((p) => {
+      const c = checks.find((x) => x.place === p.k);
+      return p.k + ' ' + (c ? '✓ (' + c.who + ', ' + fmtTime(c.created_at) + ', ' + c.seen_rows + '행)' : '✗');
+    });
+    $('oneline-3').textContent = today() + ' · evidence 표 ' + rows.length + '행 저장 확인 — ' + parts.join(' · ');
+  }
+
+  async function record(place, btn) {
+    const who = $('who').value.trim();
+    if (!who) { $('who').classList.add('bad'); $('who').focus(); return; }
+    $('who').classList.remove('bad');
+    btn.disabled = true;
+    // 누르는 순간 표를 다시 조회해, 기록에 남는 행 수가 화면이 아니라 서버의 값이 되게 한다
+    const { count, error: e1 } = await db.from(TABLE).select('id', { count: 'exact', head: true });
+    if (e1) { alert(explain(e1) || e1.message); btn.disabled = false; return; }
+    const { error } = await db.from(CHECK_TABLE).insert({ place, seen_rows: count || 0, who, agent: agentSummary() });
+    if (error) { alert((explain(error) || '') + '\n' + error.message); btn.disabled = false; return; }
+    try { localStorage.setItem('evidence-who', who); } catch (e) {}
+    await load();
+  }
+  try { $('who').value = localStorage.getItem('evidence-who') || ''; } catch (e) {}
+
+  // ── SECTION 5 키 점검 ─────────────────────────────────────────
+  // 이 페이지가 실제로 읽은 파일을 다시 열어 본다. file:// 로 열면 fetch가 막히므로 config 값만 본다.
+  const SECRET_RES = [
+    { n: 'sb_secret_ 문자열', re: /sb_secret_[A-Za-z0-9_\-]{6,}/ },
+    { n: 'service_role 키 (eyJ…)', re: /eyJ[A-Za-z0-9_\-]{10,}\.eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}/, test: (m) => jwtRole(m) === 'service_role' }
+  ];
+  async function scan() {
+    const files = ['config.js', 'index.html'];
+    const out = [];
+    let hits = 0, opened = 0;
+    for (const f of files) {
+      let text = null;
+      try { const r = await fetch(f, { cache: 'no-store' }); if (r.ok) text = await r.text(); } catch (e) {}
+      if (text == null && f === 'config.js') text = 'publishableKey: \'' + key + '\'';
+      if (text == null) { out.push([null, f, '열 수 없음 (file://)']); continue; }
+      opened++;
+      const found = [];
+      SECRET_RES.forEach((s) => {
+        const all = text.match(new RegExp(s.re.source, 'g')) || [];
+        all.forEach((m) => { if (!s.test || s.test(m)) found.push(s.n); });
+      });
+      hits += found.length;
+      out.push([found.length === 0, f, found.length ? '검출 ' + found.length + '건 — ' + found.join(', ') : '비밀 키 없음']);
+    }
+    out.unshift([kind === 'none' ? null : kind !== 'secret' && kind !== 'service_role', '브라우저가 쓰는 키 종류',
+      kind === 'publishable' ? 'publishable (sb_publishable_' + key.slice(15, 19) + '…)' : kind === 'none' ? '아직 없음' : kind]);
+    $('scan').innerHTML = out.map((o) => '<div><span class="' + (o[0] === null ? '' : o[0] ? 'o' : 'x') + '">' + (o[0] === null ? '–' : o[0] ? '✓' : '✗') + '</span><span>' + esc(o[1]) + '</span><span class="r">' + esc(o[2]) + '</span></div>').join('');
+    $('scan-badge').textContent = hits ? '검출 ' + hits + '건' : '검출 0건';
+    $('oneline-4').textContent = today() + ' · 키 점검 — 배포된 config.js · index.html ' + opened + '개를 열어 sb_secret_ · service_role 검색, 검출 ' + hits + '건 · 브라우저 키는 ' + (kind === 'none' ? '아직 없음' : kind);
+
+    // 커밋 전 점검 기록 (tools/key-scan.ps1 이 쌓는 로그)
+    try {
+      const r = await fetch('data/key-scan.log', { cache: 'no-store' });
+      if (r.ok) {
+        const t = (await r.text()).trim().split(/\r?\n/).filter(Boolean);
+        if (t.length) $('keylog').innerHTML = '커밋 전 점검 기록 <code>data/key-scan.log</code> — 최근 ' + Math.min(5, t.length) + '줄<pre>' + esc(t.slice(-5).join('\n')) + '</pre>';
+      }
+    } catch (e) {}
+  }
+
+  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+    const t = $(b.dataset.copy).textContent;
+    try { await navigator.clipboard.writeText(t); b.textContent = '복사됨'; setTimeout(() => (b.textContent = '복사'), 1400); } catch (e) { prompt('복사하세요', t); }
+  }));
+
+  renderPick();
+  checkForm();
+  scan();
+  load();
+})();
+</script>
+</body>
+</html>

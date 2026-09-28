@@ -1,0 +1,7 @@
+# OneDrive / Windows
+Thumbs.db
+desktop.ini
+~$*
+
+# Claude Code 세션 상태
+.claude/
